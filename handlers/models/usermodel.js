@@ -58,9 +58,7 @@ const userSchema = new mongoose.Schema({
     }
 })
 
-// export
 
-// module.exports = mongoose.model('User',foodSchema)
 const Address = mongoose.model('Address',addressSchema)
 const User = mongoose.model('User',userSchema)
 

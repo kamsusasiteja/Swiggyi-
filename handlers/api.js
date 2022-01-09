@@ -16,41 +16,26 @@ handler.post('/register', async (req, res) => {
         const saveUser = await userModelInstance.save()
         const savedUserInfo = await User.findById(saveUser._id).select('-_id -__v').populate('address', '-_id -__v')
 
-        res.json(savedUserInfo)
+        res.status(201).json(savedUserInfo)
 
     } catch (err) {
-        res.send('Address Error' + err)
+        res.status(500).send('Internal Server Error')
     }
 
 })
 
-// Authenticate
+// Authenticate an User, Check id a User with a specific username & password exists or not
 handler.post('/authenticate', async (req, res) => {
+    try{
     const valid = await User.findOne({ username: req.body.username, password: req.body.password })
     if (valid) {
         res.json({ "Message": "User Logged in Successfully" })
     }
     res.status(403);
     res.send();
-})
-
-
-
-
-//update a record
-handler.put('/users', async (req, res) => {
-    const result = await User.findOne({ id: req.body.id })
-    if (!result) {
-        res.json({ "Message": `Sorry user with ID ${req.body.id} not found ` })
+    }catch(err){
+        res.status(500).send('Internal Server Error')
     }
-    else {
-
-        const { address, ...requestBodyWithoutAddress } = req.body //... spread oper.. 
-        const updateResult = await Address.findByIdAndUpdate(result.address.toString(), address, { new: true })
-        const updateUser = await User.findByIdAndUpdate(result._id, { ...requestBodyWithoutAddress, address: updateResult._id }, { new: true }).populate('address')
-        res.json(updateUser)
-    }
-
 })
 
 
@@ -59,29 +44,59 @@ handler.put('/users', async (req, res) => {
 //send async req always to not block your process
 handler.get('/users', async (req, res) => {
     try {
-        const user = await User.find().populate('address')
+        const user = await User.find().select('-_id -__v').populate('address', '-_id -__v')
         res.json(user)
     } catch (err) {
-        res.send('Error' + err)
+        res.status(500).send('Internal Server Error')
     }
 })
+
 
 
 //To get user by ID
 
 handler.get('/users/:userID', async (req, res) => {
     try {
-        const user = await User.findOne({ id: req.params.userID }).populate('address')
+        const user = await User.findOne({ id: req.params.userID }).select('-_id -__v').populate('address', '-_id -__v')
         if (!user) {
-            res.json({ "Message": `Sorry user with ID ${req.params.userID} not found ` })
+            res.status(404).json({ "Message": `Sorry user with ID ${req.params.userID} not found ` })
         }
         else {
             res.json(user)
         }
     } catch (err) {
-        res.send('Error' + err)
+        res.status(500).send('Internal Server Error')
     }
 })
+
+
+//update a record
+handler.put('/users', async (req, res) => {
+    try{
+    const result = await User.findOne({ id: req.body.id })
+    if (!result) {
+        res.status(404).json({ "Message": `Sorry user with ID ${req.body.id} not found ` })
+    }
+    else {
+
+        const { address, ...requestBodyWithoutAddress } = req.body //... spread operator.. 
+        const updateResult = await Address.findByIdAndUpdate(result.address.toString(), address, { new: true })
+        const updateUser = await User
+                                    .findByIdAndUpdate(
+                                        result._id, 
+                                        { ...requestBodyWithoutAddress, address: updateResult._id }, 
+                                        { new: true })
+                                    .select('-_id -__v')
+                                    .populate('address', '-_id -__v')
+        res.json(updateUser)
+    }
+    }catch(err){
+        res.status(500).send('Internal Server Error')
+    }
+
+})
+
+
 
 // To delete by ID
 
@@ -89,19 +104,19 @@ handler.delete('/users/:userID', async (req, res) => {
     try {
         const deleteResult = await User.deleteOne({ id: req.params.userID })
         if (deleteResult.deletedCount === 0) {
-            res.json({ "Message": `Sorry user with ID ${req.params.userID} not found ` })
+            res.status(404).json({ "Message": `Sorry user with ID ${req.params.userID} not found ` })
         }
         else {
             res.json({ "Message": "User Deleted Successfully" })
         }
     } catch (err) {
-        res.send('Error' + err)
+        res.status(500).send('Internal Server Error')
     }
 })
 
 
 // To add new food into the system
-
+// Food Model instance is being created. .save() function saves data 
 handler.post('/food', async (req, res) => {
     const food = new Food({
         foodId: req.body.foodId,
@@ -111,10 +126,12 @@ handler.post('/food', async (req, res) => {
     })
 
     try {
-        const newfood = await food.save()
-        res.json(newfood)
+        const saveResult = await food.save() 
+        const {_id,__v,...newfood} = saveResult._doc
+        newfood.id=_id
+        res.status(201).json(newfood)
     } catch (err) {
-        res.send('Error' + err)
+        res.status(500).send('Internal Server Error')
     }
 })
 
@@ -122,10 +139,10 @@ handler.post('/food', async (req, res) => {
 
 handler.get('/food', async (req, res) => {
     try {
-        const user = await Food.find()
-        res.json(user)
+        const food = await Food.find().select('-_id -__v')
+        res.json(food)
     } catch (err) {
-        res.send('Error' + err)
+        res.status(500).send('Internal Server Error')
     }
 })
 
@@ -133,15 +150,17 @@ handler.get('/food', async (req, res) => {
 
 handler.get('/food/:foodID', async (req, res) => {
     try {
-        const food = await Food.findOne({ id: req.params.foodID })
+        const food = await Food.findOne({ foodId: req.params.foodID }).exec()
         if (!food) {
-            res.json({ "Message": `Sorry user with ID ${req.params.foodID} not found ` })
+            res.json({ "Message": `Sorry food not found ` })
         }
         else {
-            res.json(food)
+            const {_id,__v,...newfood} = food._doc
+            newfood.id=_id
+            res.json(newfood)
         }
     } catch (err) {
-        res.send('Error' + err)
+        res.status(500).send('Internal Server Error')
     }
 })
 
